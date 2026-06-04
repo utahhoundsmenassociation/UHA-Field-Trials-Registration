@@ -1,6 +1,6 @@
 // UHA Field Trials Sign-Up Form — Service Worker
 // Version bump this string any time you deploy a new version of index.html
-const CACHE_NAME = 'uha-signup-v1';
+const CACHE_NAME = 'uha-signup-v2';
 
 const PRECACHE = [
   './',
