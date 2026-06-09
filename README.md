@@ -1,7 +1,7 @@
 # UHA Field Trials — Sign-Up Form PWA
 
 **Designed & Developed by April Thatcher**
-Donated to the Utah Houndsmen Association · v6.9 · 2026
+Donated to the Utah Houndsmen Association · v7.2 · 2026
 
 ---
 
