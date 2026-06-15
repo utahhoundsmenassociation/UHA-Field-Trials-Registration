@@ -1,6 +1,6 @@
 <!--
   ============================================================
-  UHA Field Trials — Sign-Up Form  (v7.0 — Premium Redesign)
+  UHA Field Trials — Sign-Up Form  (v7.1 — adds one-time Membership Recovery push)
   Designed & Developed by April Thatcher
   2026
   Donated to the Utah Houndsmen Association.
@@ -450,6 +450,13 @@ input[type=number]{-moz-appearance:textfield;}
       <button class="btn-sm btn-danger" onclick="clearQueue()">Clear Queue</button>
     </div>
   </div>
+  <div class="card">
+    <div class="card-title"><span class="ico">🪪</span> Recover Memberships</div>
+    <div class="card-sub">One-time tool. Re-sends the membership names already stored on this iPad (from the Submitted list) up to the Google Sheet, so the Field Trial Manager can pull them in. It only sends the memberships — it won't re-create dog entries. Safe to run more than once; the sheet skips any that are already there.</div>
+    <div id="recover-summary" style="background:var(--green-soft);border:1px solid rgba(47,107,60,.3);border-radius:12px;padding:11px 14px;margin:4px 0 13px;font-size:12.5px;color:var(--green);">Checking this device…</div>
+    <button class="btn-sm primary" id="recoverBtn" onclick="recoverMemberships()">Push Memberships to Sheet</button>
+    <div id="recover-msg" style="margin-top:11px;font-size:12.5px;color:var(--muted);min-height:18px;"></div>
+  </div>
 </div></div>
 
 <!-- ════════════ ABOUT TAB ════════════ -->
@@ -502,7 +509,7 @@ let dogCount=1,packCount=0;
 function init(){
   addDog();
   if(document.getElementById('su-url'))document.getElementById('su-url').value=scriptUrl;
-  updateQBanner();renderRecent();renderQueueDetail();checkConn();calcCost();updateProgress();
+  updateQBanner();renderRecent();renderQueueDetail();checkConn();calcCost();updateProgress();updateRecoverSummary();
   setInterval(checkConn,20000);setInterval(flushQueue,45000);
 }
 
@@ -784,7 +791,51 @@ function renderRecent(){
     </div></div>`;
   }).join('');
 }
-function clearRecent(){if(confirm('Clear recent list?')){recent=[];localStorage.setItem(RECENT_KEY,'[]');renderRecent();}}
+function clearRecent(){if(confirm('Clear recent list?')){recent=[];localStorage.setItem(RECENT_KEY,'[]');renderRecent();updateRecoverSummary();}}
+
+// ── Membership Recovery ──────────────────────────────────────────────────────
+// Re-sends membership names stored in this iPad's Submitted list up to the
+// Google Sheet (Memberships tab) so the manager can pull them. Membership-only
+// payloads (membersOnly:true) bypass the registration-duplicate check but are
+// deduped server-side by submission ID, so this is safe to run repeatedly.
+function membershipEntries(){
+  return (recent||[]).filter(r=>r&&Array.isArray(r.members)&&r.members.length>0);
+}
+function updateRecoverSummary(){
+  const box=document.getElementById('recover-summary');if(!box)return;
+  const mem=membershipEntries();
+  if(!mem.length){box.innerHTML='No memberships are stored on this iPad\u2019s Submitted list \u2014 nothing to push from this device.';return;}
+  const people=mem.reduce((a,r)=>a+r.members.length,0);
+  box.innerHTML=`<strong>${mem.length}</strong> membership${mem.length!==1?'s':''} found on this iPad (${people} name${people!==1?'s':''}), ready to push.`;
+}
+async function recoverMemberships(){
+  const mem=membershipEntries();
+  const btn=document.getElementById('recoverBtn');
+  const msg=document.getElementById('recover-msg');
+  const setMsg=(t,c)=>{if(msg){msg.innerHTML=t;msg.style.color=c||'var(--muted)';}};
+  if(!mem.length){setMsg('Nothing to push \u2014 no memberships stored on this device.');return;}
+  if(!scriptUrl){setMsg('No Apps Script URL set \u2014 check the connection above first.','#c0392b');return;}
+  if(!navigator.onLine){setMsg('You\u2019re offline \u2014 connect to WiFi and try again.','#c0392b');return;}
+  btn.disabled=true;
+  let ok=0,fail=0;
+  for(let i=0;i<mem.length;i++){
+    const r=mem[i];
+    btn.textContent=`Pushing ${i+1}/${mem.length}\u2026`;
+    setMsg(`Sending membership ${i+1} of ${mem.length}\u2026`);
+    const p={membersOnly:true,id:r.id,timestamp:r.timestamp||new Date().toISOString(),
+      firstName:r.firstName||'',lastName:r.lastName||'',phone:r.phone||'',email:r.email||'',members:r.members||[]};
+    try{
+      await fetch(scriptUrl,{method:'POST',mode:'no-cors',headers:{'Content-Type':'text/plain'},body:JSON.stringify(p)});
+      ok++;
+    }catch(e){fail++;}
+  }
+  btn.disabled=false;btn.textContent='Push Memberships to Sheet';
+  if(!fail){
+    setMsg(`\u2713 Pushed ${ok} membership${ok!==1?'s':''} to the sheet. Now open the <strong>Field Trial Manager</strong> and tap <strong>Pull iPad Sign-Ups</strong>. (Already-recorded ones are skipped, so it\u2019s safe to run this again.)`,'var(--green)');
+  } else {
+    setMsg(`Sent ${ok} of ${mem.length}. ${fail} didn\u2019t go through \u2014 check WiFi and tap the button again. Already-sent ones are skipped automatically.`,'#b86128');
+  }
+}
 
 function clearForm(){
   ['f-first','f-last','f-street','f-city','f-state','f-zip','f-email','f-phone','f-notes'].forEach(id=>{const el=document.getElementById(id);if(el)el.value='';});

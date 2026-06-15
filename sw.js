@@ -1,6 +1,6 @@
 // UHA Field Trials Sign-Up Form — Service Worker
 // Version bump this string any time you change icons or manifest
-const CACHE_NAME = 'uha-signup-v6';
+const CACHE_NAME = 'uha-signup-v7';
 
 const PRECACHE = [
   './',
